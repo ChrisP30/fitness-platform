@@ -1,16 +1,27 @@
 /* eslint-disable @next/next/no-img-element */
-import "tailwindcss/tailwind.css";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import Head from "next/head";
+import { getCategories, getRecentPosts, getSubCategoryPost } from "@/services";
 import PostCard from "@/components/PostCard";
-import PostWidget from "@/components/PostWidget";
 import Categories from "@/components/Categories";
-import { getCategories, getRecentPosts, getPosts } from "@/services";
+import PostWidget from "@/components/PostWidget";
 
-function Home({ initialPosts, recentPosts, recentCategories }) {
+const SubcategoryPage = ({ initialPosts, categories, recentPosts, slug }) => {
   const [visiblePosts, setVisiblePosts] = useState(initialPosts.slice(0, 5));
   const [nextIndex, setNextIndex] = useState(5);
-  console.log(initialPosts);
+  const [currentSlug, setCurrentSlug] = useState(slug);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      // Use initialPosts directly from props
+      const newPosts = initialPosts;
+      console.log("Fetched new posts:", newPosts); // Log fetched data for debugging
+      setVisiblePosts(newPosts.slice(0, 5));
+      setNextIndex(5);
+    };
+
+    fetchData();
+  }, [initialPosts]);
 
   const loadMorePosts = () => {
     const newPosts = initialPosts.slice(nextIndex, nextIndex + 5);
@@ -23,13 +34,16 @@ function Home({ initialPosts, recentPosts, recentCategories }) {
       <Head>
         <title>Fitness Geek</title>
       </Head>
-
       <div className="container mx-auto px-6 mb-8 transition-all duration-1000 ease-in-out">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 transition-all duration-1000 ease-in-out">
           <div className="lg:col-span-8 col-span-1 transition-all duration-1000 ease-in-out">
-            {visiblePosts.map((post, index) => (
-              <PostCard post={post.node} key={index} />
-            ))}
+            {visiblePosts.length > 0 ? (
+              visiblePosts.map((post, index) => (
+                <PostCard key={index} post={post.node} />
+              ))
+            ) : (
+              <p>No posts available for this subcategory.</p>
+            )}
             {nextIndex < initialPosts.length && (
               <button
                 onClick={loadMorePosts}
@@ -42,32 +56,37 @@ function Home({ initialPosts, recentPosts, recentCategories }) {
           <div className="lg:col-span-4 col-span-1 transition-all duration-1000 ease-in-out">
             <div className="lg:sticky relative top-8">
               <PostWidget recentPosts={recentPosts} />
-              <Categories categories={recentCategories} />
+              <Categories categories={categories} />
             </div>
           </div>
         </div>
       </div>
     </>
   );
-}
+};
 
-export default Home;
+export default SubcategoryPage;
 
-export async function getStaticProps() {
+export async function getServerSideProps(context) {
+  const { slug } = context.params;
+
   try {
-    const initialPosts = await getPosts();
-    const [recentPosts, categories] = await Promise.all([
-      getRecentPosts(),
+    const initialPosts = await getSubCategoryPost(slug);
+
+    const [categories, recentPosts] = await Promise.all([
       getCategories(),
+      getRecentPosts(),
     ]);
+
+    recentPosts.reverse();
 
     return {
       props: {
         initialPosts: initialPosts || [],
-        recentPosts: recentPosts ? recentPosts.reverse() : [],
-        recentCategories: categories || [],
+        categories: categories || [],
+        recentPosts: recentPosts || [],
+        slug,
       },
-      revalidate: 60,
     };
   } catch (error) {
     console.error("Error fetching data:", error);
@@ -75,10 +94,10 @@ export async function getStaticProps() {
     return {
       props: {
         initialPosts: [],
+        categories: [],
         recentPosts: [],
-        recentCategories: [],
+        slug,
       },
-      revalidate: 60,
     };
   }
 }
