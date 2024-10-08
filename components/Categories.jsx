@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import "tailwindcss/tailwind.css";
-import CategoryItem from "./categoryItem";
+import CategoryItem from "./CategoryItem";
 
 const Categories = ({ categories }) => {
   return (
